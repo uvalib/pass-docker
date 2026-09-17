@@ -47,4 +47,5 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.23.0.0/16
+        # 172.23.0.0/16 is already used by avalon-docker_avalon-network on this host.
+        - subnet: 172.24.0.0/16

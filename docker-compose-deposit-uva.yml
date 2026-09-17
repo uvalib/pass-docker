@@ -1,0 +1,32 @@
+#
+# LibraOpen image for pass deposit-services:
+# This file is meant to be included after docker-compose-deposit.yml:
+#
+#   docker compose -p pass-docker \
+#     -f docker-compose.yml \
+#     -f eclipse-pass.local.yml \
+#     -f docker-compose-deposit.yml \
+#     -f docker-compose-deposit-uva.yml \
+#     build deposit-services
+#
+#   docker compose -p pass-docker \
+#     -f docker-compose.yml \
+#     -f eclipse-pass.local.yml \
+#     -f docker-compose-deposit.yml \
+#     -f docker-compose-deposit-uva.yml \
+#     up -d --quiet-pull --pull missing
+#
+
+services:
+  deposit-services:
+    image: localhost/uvalib/deposit-services-core:${PASS_VERSION}
+    pull_policy: build
+    environment:
+      DSPACE_USER_AGENT: ${DSPACE_USER_AGENT:-pass-deposit-services}
+    build:
+      context: ./deposit-uva
+      dockerfile: Dockerfile
+      args:
+        PASS_VERSION: ${PASS_VERSION}
+        PASS_SUPPORT_REF: ${PASS_SUPPORT_REF}
+        PASS_CORE_REF: ${PASS_CORE_REF}

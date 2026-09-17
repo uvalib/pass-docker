@@ -59,6 +59,7 @@ DSPACE_COLLECTION_HANDLE=123456789/3
 DSPACE_SERVER=dspace:8080
 DSPACE_USER=test@test.edu
 DSPACE_PASSWORD=admin
+DSPACE_USER_AGENT=pass-deposit-services
 
 INVENIORDM_API_BASE_URL=https://pass-docker-invenio-rdm-frontend-1/api
 INVENIORDM_API_TOKEN=
