@@ -1,0 +1,48 @@
+#
+# LibraOpen image for pass deposit-services and pass-ui:
+# This file is meant to be included after docker-compose-deposit.yml:
+#
+#   docker compose -p pass-docker \
+#     -f docker-compose.yml \
+#     -f eclipse-pass.local.yml \
+#     -f docker-compose-deposit.yml \
+#     -f docker-compose-uvalib.yml \
+#     build deposit-services pass-ui
+#
+#   docker compose -p pass-docker \
+#     -f docker-compose.yml \
+#     -f eclipse-pass.local.yml \
+#     -f docker-compose-deposit.yml \
+#     -f docker-compose-uvalib.yml \
+#     up -d --quiet-pull --pull missing
+#
+
+services:
+  deposit-services:
+    image: localhost/uvalib/deposit-services-core:${PASS_VERSION}
+    pull_policy: build
+    environment:
+      DSPACE_USER_AGENT: ${DSPACE_USER_AGENT:-pass-deposit-services}
+    build:
+      context: ./deposit-uva
+      dockerfile: Dockerfile
+      args:
+        PASS_SUPPORT_REF: ${PASS_SUPPORT_REF}
+        PASS_CORE_REF: ${PASS_CORE_REF}
+
+  pass-ui:
+    image: localhost/uvalib/pass-ui:${PASS_VERSION}
+    pull_policy: build
+    build:
+      context: ./ui-uva
+      dockerfile: Dockerfile
+      args:
+        PASS_UI_REF: ${PASS_UI_REF}
+        PASS_UI_ROOT_URL: ${PASS_UI_ROOT_URL}
+        STATIC_CONFIG_URL: ${STATIC_CONFIG_URL}
+        SCHEMA_SERVICE_PATH: ${SCHEMA_SERVICE_PATH}
+        DOI_SERVICE_PATH: ${DOI_SERVICE_PATH}
+        MANUSCRIPT_SERVICE_LOOKUP_PATH: ${MANUSCRIPT_SERVICE_LOOKUP_PATH}
+        POLICY_SERVICE_POLICY_PATH: ${POLICY_SERVICE_POLICY_PATH}
+        POLICY_SERVICE_REPOSITORY_PATH: ${POLICY_SERVICE_REPOSITORY_PATH}
+        PASS_API_NAMESPACE: ${PASS_API_NAMESPACE}

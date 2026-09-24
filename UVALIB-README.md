@@ -20,45 +20,46 @@ LibraOpen Publication collections use the DSpace **Publication** submission proc
 
 | Path                                                                                                     | Purpose                                                                                                                                                    |
 | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `[docker-compose-deposit-uva.yml](docker-compose-deposit-uva.yml)`                                       | Compose overlay: build a local UVA deposit-services image instead of pulling `ghcr.io/eclipse-pass/deposit-services-core`                                  |
+| `[docker-compose-uvalib.yml](docker-compose-uvalib.yml)`                                                 | Compose overlay: build local UVA deposit-services and pass-ui images instead of pulling GHCR                                                               |
 | `[deposit-uva/Dockerfile](deposit-uva/Dockerfile)`                                                       | Clones `pass-support` at a git ref, overlays the UVA files, runs deposit-core's Maven package, copys the JAR into the original deposit-servcies-core image |
 | `[deposit-uva/overlay/DSpaceMetadataMapper.java](deposit-uva/overlay/DSpaceMetadataMapper.java)`         | LibraOpen Publication JSON mapper                                                                                                                          |
 | `[deposit-uva/overlay/DSpaceMetadataMapperTest.java](deposit-uva/overlay/DSpaceMetadataMapperTest.java)` | Unit tests run by during the image build                                                                                                                   |
+| `[ui-uva/Dockerfile](ui-uva/Dockerfile)`                                                                 | Clones `uvalib/pass-ui`, runs `pnpm install` + `pnpm build`, then packages nginx like `pass-ui/Dockerfile`                                                 |
 
 
 
 
 ## Prerequisites
 
-Docker Compose (Docker Desktop or recent Podman compose). The build needs network access to GitHub and Maven Central (plus GHCR for the runtime base). `.env` must set `PASS_VERSION` (GHCR runtime tag), `PASS_SUPPORT_REF`, and `PASS_CORE_REF` (git tags, currently `2.5.1`).
+Docker Compose (Docker Desktop or recent Podman compose). The build needs network access to GitHub, Maven Central, and npm. `.env` must set `PASS_VERSION` (local image tag, e.g. `2.6.0-SNAPSHOT`), `PASS_SUPPORT_REF` / `PASS_CORE_REF` (git branch `main` for SNAPSHOT, or a release tag), and `PASS_UI_REF` (git branch, currently `uvalib`).
 
-## Run a local stac
+## Run a local stack
 
-From `pass-docker`, run docker compose commands with `docker-compose-deposit-uva.yml` **after** `docker-compose-deposit.yml`
+From `pass-docker` on `uvalib-builder`, run docker compose commands with `docker-compose-uvalib.yml` **after** `docker-compose-deposit.yml`.
 
-Build the mapper image (also runs `DSpaceMetadataMapperTest`):
+Build the uvalib images:
 
 ```bash
 docker compose -p pass-docker \
   -f docker-compose.yml \
   -f eclipse-pass.local.yml \
   -f docker-compose-deposit.yml \
-  -f docker-compose-deposit-uva.yml \
-  build deposit-services
+  -f docker-compose-uvalib.yml \
+  build deposit-services pass-ui
 ```
 
-Start PASS, and deposit-services:
+Start PASS core, deposit-services, and pass-ui:
 
 ```bash
 docker compose -p pass-docker \
   -f docker-compose.yml \
   -f eclipse-pass.local.yml \
   -f docker-compose-deposit.yml \
-  -f docker-compose-deposit-uva.yml \
+  -f docker-compose-uvalib.yml \
   up -d --quiet-pull --pull missing
 ```
 
-`--pull missing` keeps Compose from replacing the locally built `localhost/uvalib/deposit-services-core` image with the GHCR one.
+`--pull missing` keeps Compose from replacing the locally built `localhost/uvalib/deposit-services-core` and `localhost/uvalib/pass-ui` images with the GHCR ones.
 
 `--build` is also useful in the `up` command.
 
@@ -88,9 +89,19 @@ DSpace UI: [http://localhost:4000](http://localhost:4000)
 
 [deposit-uva/Dockerfile](deposit-uva/Dockerfile)
 
-1. Clone `pass-support` and `pass-core` at the required git tags `PASS_SUPPORT_REF` / `PASS_CORE_REF` (e.g. `2.5.1`).
-2. Overlay the two UVA Java files onto `pass-deposit-services/deposit-core`.
-3. `mvn -pl pass-core-test-config -am install` from `pass-core`, then `mvn -pl pass-deposit-services/deposit-core -am package` with `-Dtest=DSpaceMetadataMapperTest` (reused from upstream deposit-core ).
-4. Copy `deposit-core-*-exec.jar` into `FROM ghcr.io/eclipse-pass/deposit-services-core:${PASS_VERSION}` (keeps upstream entrypoint, user, and JRE).
+1. Clone `pass-support` and `pass-core` at `PASS_SUPPORT_REF` / `PASS_CORE_REF` (`main` for SNAPSHOT).
+2. Overlay the Java files onto `pass-deposit-services/deposit-core`.
+3. `mvn -pl pass-core-test-config -am install` originally from `pass-core`, then `mvn -pl pass-deposit-services/deposit-core -am package` with `-Dtest=DSpaceMetadataMapperTest`.
+4. Package with the same JRE stage as `deposit-core/Dockerfile` (`FROM eclipse-temurin:17-jre`).
 
 The image build fails if `DSpaceMetadataMapperTest` fails.
+
+## How the pass-ui image is built
+
+[ui-uva/Dockerfile](ui-uva/Dockerfile)
+
+1. Clone `uvalib/pass-ui` at `PASS_UI_REF` (branch `uvalib`).
+2. `pnpm install --frozen-lockfile` and `pnpm build` with the `PASS_UI_*` values from `.env` (same host-side steps as `pass-ui/build.sh`).
+3. Package with the same nginx stage as `pass-ui/Dockerfile` (`FROM nginxinc/nginx-unprivileged`). 
+
+Rebuild after new `uvalib` commits with `--no-cache` (or set `PASS_UI_REF` to a commit SHA).
